@@ -1,26 +1,35 @@
 package main
 
 import (
-	"context"
-	"github.com/decentralized-hse/go-log-gossip/gui"
+	"github.com/decentralized-hse/go-log-gossip/api"
 	"log"
 	"os"
 	"os/signal"
-	"time"
 )
 
 func main() {
-	log.Printf("main: starting HTTP server")
+	stopApiServerChannel := make(chan bool, 1)
+	newLogChannel := make(chan string, 1)
 
-	server := gui.StartGUIServer()
+	apiServerConfiguration := api.NewApiServerConfiguration(
+		":5001",
+		stopApiServerChannel,
+		newLogChannel,
+	)
+
+	go api.StartApiServer(apiServerConfiguration)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
-	<-stop
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := server.Shutdown(ctx); err != nil {
+	isNodeAlive := true
+	for isNodeAlive {
+		select {
+		case <-stop:
+			stopApiServerChannel <- true
+			isNodeAlive = false
+		case message := <-newLogChannel:
+			log.Println(message)
+		}
 	}
 }
