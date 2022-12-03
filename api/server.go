@@ -5,32 +5,26 @@ import (
 	"github.com/decentralized-hse/go-log-gossip/api/handlers"
 	"log"
 	"net/http"
-	"time"
 )
 
-func StartApiServer(configuration *ApiServerConfiguration) {
-	newMessageHandler := handlers.OnNewLogApiHandlerFactory(configuration.newLogChannel)
-	http.HandleFunc("/api/messages/new", newMessageHandler)
+func ServeAPIServer(configuration *ServerConfiguration) {
+	defer configuration.WaitGroup.Done()
 
 	server := &http.Server{
-		Addr: configuration.addr,
+		Addr: configuration.Addr,
 	}
-
-	log.Printf(server.Addr)
+	http.HandleFunc("/api/messages/new", handlers.HandleNewLog)
 
 	go func() {
 		if err := server.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
-	log.Printf("Started server")
+	log.Printf("Started http api server, addr %v", server.Addr)
 
-	<-configuration.channelToOffServer
+	<-configuration.Context.Done()
+	log.Printf("Shutting down api server")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Server shutdown failed: %+v", err)
-	}
-	log.Printf("Server exited properly")
+	_ = server.Shutdown(context.Background())
+	log.Printf("Api server sexited properly")
 }

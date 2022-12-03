@@ -2,21 +2,17 @@ package handlers
 
 import (
 	"encoding/json"
+	"github.com/decentralized-hse/go-log-gossip/domain/features/creating_self_log/commands"
+	"github.com/mehdihadeli/go-mediatr"
 	"log"
 	"net/http"
 )
-
-func OnNewLogApiHandlerFactory(newRawLogChannel chan<- string) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		handleNewLogHandler(newRawLogChannel, w, r)
-	}
-}
 
 type newLogMessage struct {
 	Log string `json:"log"`
 }
 
-func handleNewLogHandler(newRawLogChannel chan<- string, w http.ResponseWriter, r *http.Request) {
+func HandleNewLog(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -29,9 +25,17 @@ func handleNewLogHandler(newRawLogChannel chan<- string, w http.ResponseWriter, 
 		http.Error(w, "Error while reading body", http.StatusBadRequest)
 		return
 	}
-	log.Println(logMessage)
 
-	newRawLogChannel <- logMessage.Log
+	response, err := mediatr.Send[*commands.CreateSelfLogCommand, *commands.CreateSelfLogResponse](
+		r.Context(),
+		commands.NewCreateSelfLogCommand(logMessage.Log),
+	)
+	if err != nil {
+		http.Error(w, "Error while trying to add new log", http.StatusInternalServerError)
+		return
+	}
+
+	log.Println(response)
 
 	_, err = w.Write([]byte("OK"))
 	if err != nil {

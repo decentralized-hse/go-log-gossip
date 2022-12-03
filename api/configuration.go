@@ -1,11 +1,16 @@
 package api
 
-type ApiServerConfiguration struct {
-	addr               string
-	channelToOffServer <-chan bool
-	newLogChannel      chan<- string
+import (
+	"context"
+	"sync"
+)
+
+type ServerConfiguration struct {
+	Addr      string
+	Context   context.Context
+	WaitGroup *sync.WaitGroup
 }
 
-func NewApiServerConfiguration(addr string, channelToOffServer <-chan bool, newLogChannel chan<- string) *ApiServerConfiguration {
-	return &ApiServerConfiguration{addr: addr, channelToOffServer: channelToOffServer, newLogChannel: newLogChannel}
+func NewServerConfiguration(addr string, context context.Context, wg *sync.WaitGroup) *ServerConfiguration {
+	return &ServerConfiguration{Addr: addr, Context: context, WaitGroup: wg}
 }
