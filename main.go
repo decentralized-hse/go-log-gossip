@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"github.com/decentralized-hse/go-log-gossip/api"
 	"github.com/decentralized-hse/go-log-gossip/domain/features/creating_self_log/commands"
+	"github.com/decentralized-hse/go-log-gossip/infra/keys"
 	"github.com/mehdihadeli/go-mediatr"
 	"log"
 	"os"
@@ -17,11 +19,31 @@ var (
 )
 
 func main() {
-	initializeMediatr()
+	//initializeMediatr()
+	//
+	//startApiServer()
+	//
+	//registerGracefulShutdown()
 
-	startApiServer()
+	// keys.GenerateNewPair(".")
+	pair, err := keys.LoadFromFiles(".")
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// TODO: notify to generate call init config
+			log.Fatalf("Need to generate config")
+		} else {
+			panic(err)
+		}
+	}
 
-	registerGracefulShutdown()
+	message := []byte("Secret message to have signature")
+	sig, err := pair.GetPrivateKey().SignMessage(message)
+
+	err = pair.GetPublicKey().VerifySignature(message, sig)
+	if err != nil {
+		log.Fatalf("failed to sig")
+	}
+	log.Println("signature valid")
 }
 
 func initializeMediatr() {
