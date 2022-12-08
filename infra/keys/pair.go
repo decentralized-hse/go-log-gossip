@@ -13,16 +13,16 @@ type PublicPrivateKeyPair struct {
 	key *rsa.PrivateKey
 }
 
-func GenerateNewPair() (pair *PublicPrivateKeyPair) {
+func GenerateNewPair() (pair *PublicPrivateKeyPair, err error) {
 	key, err := rsa.GenerateKey(rand.Reader, KeyBitSize)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return &PublicPrivateKeyPair{key}
+	return &PublicPrivateKeyPair{key}, nil
 }
 
-func (p *PublicPrivateKeyPair) SaveToFiles(path string) {
+func (p *PublicPrivateKeyPair) SaveToFiles(path string) (err error) {
 	// https://stackoverflow.com/questions/64104586/use-golang-to-get-rsa-key-the-same-way-openssl-genrsa
 	keyPEM := pem.EncodeToMemory(
 		&pem.Block{
@@ -39,14 +39,13 @@ func (p *PublicPrivateKeyPair) SaveToFiles(path string) {
 	)
 
 	fullPrivatePath := filepath.Join(path, PrivateKeyFilename)
-	if err := os.WriteFile(fullPrivatePath, keyPEM, 0400); err != nil {
-		panic(err)
+	if err = os.WriteFile(fullPrivatePath, keyPEM, 0400); err != nil {
+		return err
 	}
 
 	fullPublicPath := filepath.Join(path, PublicKeyFilename)
-	if err := os.WriteFile(fullPublicPath, pubPEM, 0444); err != nil {
-		panic(err)
-	}
+	err = os.WriteFile(fullPublicPath, pubPEM, 0444)
+	return err
 }
 
 func LoadFromFiles(path string) (*PublicPrivateKeyPair, error) {

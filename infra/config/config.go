@@ -53,6 +53,15 @@ func (c *Config) SaveToFile() error {
 	return err
 }
 
+func (c *Config) DeleteFile() error {
+	return os.Remove(ConfigFilename)
+}
+
+func (c *Config) ListFolders() (folders []string) {
+	folders = append(folders, c.Paths.PathToFolderWithLogs, c.Paths.PathToFolderWithRSAKeys)
+	return folders
+}
+
 func LoadFromFile() (config *Config, err error) {
 	data, err := os.ReadFile(ConfigFilename)
 	if err != nil {
@@ -61,14 +70,4 @@ func LoadFromFile() (config *Config, err error) {
 
 	err = yaml.Unmarshal(data, &config)
 	return config, err
-}
-
-func (c *Config) CreateFolders() (err error) {
-	err = os.Mkdir(c.Paths.PathToFolderWithLogs, 0755)
-	if err != nil {
-		return err
-	}
-
-	err = os.Mkdir(c.Paths.PathToFolderWithRSAKeys, 0755)
-	return err
 }
