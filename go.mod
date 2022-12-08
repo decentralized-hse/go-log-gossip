@@ -2,6 +2,8 @@ module github.com/decentralized-hse/go-log-gossip
 
 go 1.19
 
+require gopkg.in/yaml.v3 v3.0.1
+
 require (
 	github.com/ahmetb/go-linq/v3 v3.2.0 // indirect
 	github.com/goccy/go-reflect v1.2.0 // indirect
