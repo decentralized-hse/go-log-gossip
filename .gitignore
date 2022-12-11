@@ -16,3 +16,8 @@
 # vendor/
 
 go-log-gossip
+go-log-gossip.exe
+
+config.yaml
+.keys/*
+logs/*

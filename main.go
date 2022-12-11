@@ -1,56 +1,46 @@
 package main
 
 import (
-	"context"
-	"github.com/decentralized-hse/go-log-gossip/api"
-	"github.com/decentralized-hse/go-log-gossip/domain/features/creating_self_log/commands"
-	"github.com/mehdihadeli/go-mediatr"
+	initCmd "github.com/decentralized-hse/go-log-gossip/cmd/init"
+	"github.com/decentralized-hse/go-log-gossip/cmd/remove"
+	"github.com/decentralized-hse/go-log-gossip/cmd/start"
+	"github.com/urfave/cli/v2"
 	"log"
 	"os"
-	"os/signal"
-	"sync"
-)
-
-var (
-	wg          sync.WaitGroup
-	ctx, cancel = context.WithCancel(context.Background())
 )
 
 func main() {
-	initializeMediatr()
-
-	startApiServer()
-
-	registerGracefulShutdown()
-}
-
-func initializeMediatr() {
-	createSelfLogHandler := commands.NewCreateSelfLogHandler(nil)
-	err := mediatr.RegisterRequestHandler[*commands.CreateSelfLogCommand, *commands.CreateSelfLogResponse](createSelfLogHandler)
-	if err != nil {
-		panic("Failed to register CreateSelfLogHandler")
+	app := &cli.App{
+		Name:  "go-log-gossip",
+		Usage: "Multilog system working via gossip",
+		Commands: []*cli.Command{
+			{
+				Name:    "init",
+				Aliases: []string{"i"},
+				Usage:   "init config files",
+				Action: func(_ *cli.Context) error {
+					return initCmd.CommandInitConfig()
+				},
+			},
+			{
+				Name:    "start",
+				Aliases: []string{"s"},
+				Usage:   "starts node",
+				Action: func(_ *cli.Context) error {
+					return start.CommandStartNode()
+				},
+			},
+			{
+				Name:    "remove",
+				Aliases: []string{"r"},
+				Usage:   "removes all configs, including folders, keys and etc",
+				Action: func(_ *cli.Context) error {
+					return remove.CommandRemoveConfig()
+				},
+			},
+		},
 	}
-}
-
-func startApiServer() {
-	apiServerConfiguration := api.NewServerConfiguration(
-		":5001",
-		ctx,
-		&wg,
-	)
-
-	wg.Add(1)
-	go api.ServeAPIServer(apiServerConfiguration)
-}
-
-func registerGracefulShutdown() {
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
-
-	<-stop
-	log.Println("Graceful shutdown. Cancelling all goroutines")
-	cancel()
-
-	log.Println("Send cancel signal, waiting goroutines")
-	wg.Wait()
+	if err := app.Run(os.Args); err != nil {
+		log.Fatal(err)
+	}
 }
