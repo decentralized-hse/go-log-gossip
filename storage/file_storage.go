@@ -18,25 +18,25 @@ type FileStorage struct {
 	mutex  *sync.Mutex
 }
 
-func NewFileStorage(config FileStorageConfiguration) FileStorage {
-	return FileStorage{config: config, mutex: new(sync.Mutex)}
+func NewFileStorage(config FileStorageConfiguration) *FileStorage {
+	return &FileStorage{config: config, mutex: new(sync.Mutex)}
 }
 
-func (storage *FileStorage) Append(log domain.Log) error {
-	logsFilePath := storage.getFilePath(log.NodeId, "log")
+func (storage *FileStorage) Append(log string, nodeId domain.NodeId) (*domain.Log, error) {
+	logsFilePath := storage.getFilePath(nodeId, "log")
 	logsFile, err := types.OpenAppendOnlyFile(logsFilePath)
 	defer logsFile.Close()
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	indexFilePath := storage.getFilePath(log.NodeId, "index")
+	indexFilePath := storage.getFilePath(nodeId, "index")
 	indexFile, err := types.OpenAppendOnlyFile(indexFilePath)
 	defer indexFile.Close()
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	storage.mutex.TryLock()
@@ -45,22 +45,31 @@ func (storage *FileStorage) Append(log domain.Log) error {
 	logFileSize, err := logsFile.Size()
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	_, err = indexFile.Append(fmt.Sprintf("%016x", logFileSize))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = logsFile.AppendLine(log.Message)
+	_, err = logsFile.AppendLine(log)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	err = storage.updateHashTree(log.Message)
+	err = storage.updateHashTree(log)
 
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.Log{
+		Hash:    "",
+		Id:      0,
+		NodeId:  nodeId,
+		Message: log,
+	}, nil
 }
 
 func (storage *FileStorage) getFilePath(nodeId domain.NodeId, fileName string) string {
