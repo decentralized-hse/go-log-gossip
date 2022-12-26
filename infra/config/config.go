@@ -10,13 +10,28 @@ type Config struct {
 		PathToFolderWithRSAKeys string `yaml:"path_to_folder_with_rsa_keys"`
 		PathToFolderWithLogs    string `yaml:"path_to_folder_with_logs"`
 	} `yaml:"paths"`
-	Nodes struct {
-		BoostrapNodeIp   string `yaml:"boostrap_node_ip"`
-		BoostrapNodePort string `yaml:"boostrap_node_port"`
-	} `yaml:"nodes"`
+	Gossip struct {
+		// SelfNodeName marks current node name (default is os.Hostname())
+		SelfNodeName string `yaml:"self_node_name"`
+
+		// SelfNodePort
+		SelfNodePort int `yaml:"self_node_port"`
+
+		// SecretKey AES key stored as base64
+		SecretKey string `yaml:"secret_key"`
+
+		// BoostrapNodeIp is used for boostraping cluster nodes
+		BoostrapNodeAddr string `yaml:"boostrap_node_addr"`
+		IsBoostrapNode   bool   `yaml:"is_boostrap_node"`
+	}
+	Api struct {
+		Addr string `yaml:"addr"`
+	}
 }
 
 func NewDefaultConfig() *Config {
+	hostName, _ := os.Hostname()
+
 	return &Config{
 		Paths: struct {
 			PathToFolderWithRSAKeys string `yaml:"path_to_folder_with_rsa_keys"`
@@ -25,12 +40,23 @@ func NewDefaultConfig() *Config {
 			PathToFolderWithRSAKeys: RSAKeysFolder,
 			PathToFolderWithLogs:    LogsFolder,
 		},
-		Nodes: struct {
-			BoostrapNodeIp   string `yaml:"boostrap_node_ip"`
-			BoostrapNodePort string `yaml:"boostrap_node_port"`
+		Gossip: struct {
+			SelfNodeName     string `yaml:"self_node_name"`
+			SelfNodePort     int    `yaml:"self_node_port"`
+			SecretKey        string `yaml:"secret_key"`
+			BoostrapNodeAddr string `yaml:"boostrap_node_addr"`
+			IsBoostrapNode   bool   `yaml:"is_boostrap_node"`
 		}{
-			BoostrapNodeIp:   BoostrapNodeIp,
-			BoostrapNodePort: BoostrapNodePort,
+			SelfNodeName:     hostName,
+			SelfNodePort:     SelfPort,
+			SecretKey:        SecretKey,
+			BoostrapNodeAddr: BoostrapNodeIp,
+			IsBoostrapNode:   IsBoostrapNode,
+		},
+		Api: struct {
+			Addr string `yaml:"addr"`
+		}{
+			Addr: ApiAddr,
 		},
 	}
 }

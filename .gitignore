@@ -21,3 +21,6 @@ go-log-gossip.exe
 config.yaml
 .keys/*
 logs/*
+send/
+recv/
+
