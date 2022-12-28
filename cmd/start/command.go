@@ -5,6 +5,8 @@ import (
 	"github.com/decentralized-hse/go-log-gossip/api"
 	"github.com/decentralized-hse/go-log-gossip/domain/features/creating_self_log/commands"
 	"github.com/decentralized-hse/go-log-gossip/infra/config"
+	"github.com/decentralized-hse/go-log-gossip/infra/gossip"
+	"github.com/decentralized-hse/go-log-gossip/infra/keys"
 	"github.com/mehdihadeli/go-mediatr"
 	"log"
 	"os"
@@ -16,10 +18,14 @@ var (
 	wg          sync.WaitGroup
 	ctx, cancel = context.WithCancel(context.Background())
 	cfg         *config.Config
+	keysPair    *keys.PublicPrivateKeyPair
+	gossiper    *gossip.Gossiper
 )
 
 func CommandStartNode() error {
 	loadConfig()
+	loadKeys()
+	startGossip()
 	initializeMediatr()
 	startApiServer()
 	registerGracefulShutdown()
@@ -35,8 +41,16 @@ func loadConfig() {
 	cfg = loadedCfg
 }
 
+func loadKeys() {
+	loadFromFiles, err := keys.LoadFromFiles(cfg.Paths.PathToFolderWithRSAKeys)
+	if err != nil {
+		panic(err)
+	}
+	keysPair = loadFromFiles
+}
+
 func initializeMediatr() {
-	createSelfLogHandler := commands.NewCreateSelfLogHandler(nil)
+	createSelfLogHandler := commands.NewCreateSelfLogHandler(nil, gossiper)
 	err := mediatr.RegisterRequestHandler[*commands.CreateSelfLogCommand, *commands.CreateSelfLogResponse](createSelfLogHandler)
 	if err != nil {
 		panic("Failed to register CreateSelfLogHandler")
@@ -45,13 +59,18 @@ func initializeMediatr() {
 
 func startApiServer() {
 	apiServerConfiguration := api.NewServerConfiguration(
-		":5001",
+		cfg.Api.Addr,
 		ctx,
 		&wg,
 	)
 
-	wg.Add(1)
 	go api.ServeAPIServer(apiServerConfiguration)
+	wg.Add(1)
+}
+
+func startGossip() {
+	gossiper = gossip.Start(cfg, keysPair, gossipHandler, ctx, &wg)
+	wg.Add(1)
 }
 
 func registerGracefulShutdown() {
