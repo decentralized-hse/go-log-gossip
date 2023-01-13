@@ -14,6 +14,7 @@ func ServeAPIServer(configuration *ServerConfiguration) {
 		Addr: configuration.Addr,
 	}
 	http.HandleFunc("/api/messages/new", handlers.HandleNewLog)
+	http.HandleFunc("/api/messages/{id}", handlers.HandleGetLogs)
 
 	go func() {
 		if err := server.ListenAndServe(); err != http.ErrServerClosed {

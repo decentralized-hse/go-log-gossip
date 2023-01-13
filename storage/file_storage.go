@@ -65,10 +65,10 @@ func (storage *FileStorage) Append(log string, nodeId domain.NodeId) (*domain.Lo
 	}
 
 	return &domain.Log{
-		Hash:    "",
-		Id:      0,
-		NodeId:  nodeId,
-		Message: log,
+		Hash:     "",
+		Position: 0,
+		NodeId:   nodeId,
+		Message:  log,
 	}, nil
 }
 

@@ -6,6 +6,9 @@ import (
 )
 
 func gossipHandler(message *gossip.Message) {
-	// todo: handle message
+	switch message.MessageType {
+	case gossip.New:
+
+	}
 	log.Println(message)
 }
