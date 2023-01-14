@@ -8,7 +8,8 @@ import (
 )
 
 type notifyDelegate struct {
-	handler MessageHandler
+	handler                    MessageHandler
+	receivedNodeIdAddrCallback ReceivedNodeIdAddrCallback
 }
 
 func (m *notifyDelegate) NodeMeta(_ int) []byte {
@@ -26,7 +27,7 @@ func (m *notifyDelegate) NotifyMsg(bytes []byte) {
 		return
 	}
 
-	senderPublicKey, err := keys.DecodePublicKey(message.Sender)
+	senderPublicKey, err := keys.DecodePublicKey(string(message.Sender))
 	if err != nil {
 		log.Println("failed to decode sender public key: ", err)
 		return
@@ -49,6 +50,8 @@ func (m *notifyDelegate) NotifyMsg(bytes []byte) {
 		log.Println("failed to verify signature: ", err)
 		return
 	}
+
+	m.receivedNodeIdAddrCallback(message.Sender, message.Meta.Addr)
 
 	m.handler(&message)
 }
