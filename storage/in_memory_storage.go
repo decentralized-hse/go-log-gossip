@@ -71,7 +71,7 @@ func (storage *InMemoryStorage) Append(message string, nodeId domain.NodeId) (*d
 	}, nil
 }
 
-func (storage *InMemoryStorage) InsertAt(message string, nodeId domain.NodeId, position int) (err error, lastInserted int) {
+func (storage *InMemoryStorage) InsertAt(message string, nodeId domain.NodeId, position int) (error, int) {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
 	tree, ok := storage.trees[nodeId]
@@ -83,7 +83,7 @@ func (storage *InMemoryStorage) InsertAt(message string, nodeId domain.NodeId, p
 	if tree.LastNode.Position >= position {
 		return errors.New(
 			fmt.Sprintf("cannot insert message at position = %d, last inserted position = %d",
-				position, tree.LastNode.Position)), tree.LastNode.Position
+				position, tree.LastNode.Position)), -1
 	}
 	queue, ok := storage.queues[nodeId]
 	if !ok {
@@ -95,23 +95,23 @@ func (storage *InMemoryStorage) InsertAt(message string, nodeId domain.NodeId, p
 		record, ok := queue[lastPosition+1]
 		if !ok {
 			queue[position] = &queueRecord{message, nodeId}
-			return errors.New("not all records are present in the queue"), lastPosition
+			return errors.New("not all records are present in the queue"), lastPosition + 1
 		}
 		err := tree.Append(&LogNodeValue{record.Message})
 
 		if err != nil {
 			queue[position] = &queueRecord{message, nodeId}
-			return err, lastPosition
+			return err, -1
 		}
 	}
 
-	err = tree.Append(&LogNodeValue{message})
+	err := tree.Append(&LogNodeValue{message})
 
 	if err != nil {
 		queue[position] = &queueRecord{message, nodeId}
-		return err, tree.LastNode.Position
+		return err, -1
 	}
-	return nil, position
+	return nil, -1
 }
 
 func (storage *InMemoryStorage) GetNodeMessages(id domain.NodeId) ([]*domain.Log, error) {
