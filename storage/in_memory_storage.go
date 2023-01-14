@@ -114,7 +114,7 @@ func (storage *InMemoryStorage) InsertAt(message string, nodeId domain.NodeId, p
 	return nil, -1
 }
 
-func (storage *InMemoryStorage) GetNodeMessages(id domain.NodeId) ([]*domain.Log, error) {
+func (storage *InMemoryStorage) GetNodeLogs(id domain.NodeId) ([]*domain.Log, error) {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
 	tree, ok := storage.trees[id]
