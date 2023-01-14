@@ -63,7 +63,7 @@ func Start(cfg *config.Config, keys *keys.PublicPrivateKeyPair, handler MessageH
 	}
 }
 
-func (g *Gossiper) BroadcastMessage(messageType string, data any) error {
+func (g *Gossiper) BroadcastMessage(messageType MessageType, data any) error {
 	marshaledData, err := json.Marshal(data)
 	if err != nil {
 		return err

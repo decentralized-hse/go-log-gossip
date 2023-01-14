@@ -18,11 +18,11 @@ func NewCreateSelfLogHandler(storage storage.LogStorage, gossiper *gossip.Gossip
 }
 
 func (c *CreateSelfLogHandler) Handle(_ context.Context, command *CreateSelfLogCommand) (response *CreateSelfLogResponse, err error) {
-	//log, err := c.storage.Append(command.Message, SelfNodeId)
+	log, err := c.storage.Append(command.Message, SelfNodeId)
 	if err != nil {
 		return nil, err
 	}
-	_ = c.gossiper.BroadcastMessage("new", command.Message)
-	response = &CreateSelfLogResponse{NewLog: nil}
+	_ = c.gossiper.BroadcastMessage(gossip.New, log)
+	response = &CreateSelfLogResponse{NewLog: log}
 	return
 }

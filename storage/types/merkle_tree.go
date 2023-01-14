@@ -10,30 +10,30 @@ type NodeValue interface {
 	Equals(other NodeValue) (bool, error)
 }
 
-type MerkleTree struct {
-	Root         *Node
+type MerkleTree[T NodeValue] struct {
+	Root         *Node[T]
 	merkleRoot   []byte
-	Leafs        []*Node
+	Leafs        []*Node[T]
 	hashStrategy func() hash.Hash
 }
 
-type Node struct {
-	Tree   *MerkleTree
-	Parent *Node
-	Left   *Node
-	Right  *Node
+type Node[T NodeValue] struct {
+	Tree   *MerkleTree[T]
+	Parent *Node[T]
+	Left   *Node[T]
+	Right  *Node[T]
 	level  int64
 	Hash   []byte
-	Value  NodeValue
+	Value  *T
 }
 
-func (n *Node) leaf() bool {
+func (n *Node[T]) leaf() bool {
 	return n.level == 0
 }
 
-func (n *Node) verifyNode() ([]byte, error) {
+func (n *Node[T]) verifyNode() ([]byte, error) {
 	if n.leaf() {
-		return n.Value.CalculateHash()
+		return (*n.Value).CalculateHash()
 	}
 	rightBytes, err := n.Right.verifyNode()
 	if err != nil {
@@ -53,9 +53,9 @@ func (n *Node) verifyNode() ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-func (n *Node) calculateNodeHash() ([]byte, error) {
+func (n *Node[T]) calculateNodeHash() ([]byte, error) {
 	if n.leaf() {
-		return n.Value.CalculateHash()
+		return (*n.Value).CalculateHash()
 	}
 
 	h := n.Tree.hashStrategy()
@@ -66,14 +66,14 @@ func (n *Node) calculateNodeHash() ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-func NewMerkleTree() *MerkleTree {
-	merkleTree := &MerkleTree{
+func NewMerkleTree[T NodeValue]() *MerkleTree[T] {
+	merkleTree := &MerkleTree[T]{
 		merkleRoot:   nil,
-		Leafs:        make([]*Node, 0, 64),
+		Leafs:        make([]*Node[T], 0, 64),
 		hashStrategy: sha256.New,
 	}
 
-	merkleTree.Root = &Node{
+	merkleTree.Root = &Node[T]{
 		Tree:   merkleTree,
 		Parent: nil,
 		Left:   nil,
@@ -85,20 +85,36 @@ func NewMerkleTree() *MerkleTree {
 	return merkleTree
 }
 
-func (m *MerkleTree) Append(value NodeValue) error {
+func (m *MerkleTree[T]) Append(value T) (int, error) {
 	root := m.Root
 
-	hash, err := value.CalculateHash()
+	valueHash, err := value.CalculateHash()
+	var previousHash []byte
 
-	if err != nil {
-		return err
+	if len(m.Leafs) > 0 {
+		previousHash = m.Leafs[len(m.Leafs)-1].Hash
+	} else {
+		previousHash = make([]byte, 0)
 	}
 
-	node := &Node{
+	if err != nil {
+		return 0, err
+	}
+
+	h := m.hashStrategy()
+
+	_, err = h.Write(valueHash)
+	valueHash = h.Sum(previousHash)
+
+	if err != nil {
+		return 0, err
+	}
+
+	node := &Node[T]{
 		Tree:  m,
 		level: 0,
-		Hash:  hash,
-		Value: value,
+		Hash:  valueHash,
+		Value: &value,
 	}
 
 	m.Leafs = append(m.Leafs, node)
@@ -106,19 +122,19 @@ func (m *MerkleTree) Append(value NodeValue) error {
 	if root.Left == nil {
 		root.Left = node
 		node.Parent = root
-		return m.updateParentHashes(node)
+		return len(m.Leafs), m.updateParentHashes(node)
 	}
 
 	if root.Right == nil {
 		root.Right = node
 		node.Parent = root
-		return m.updateParentHashes(node)
+		return len(m.Leafs), m.updateParentHashes(node)
 	}
 
 	success := appendToSubroot(node, root)
 
 	if !success {
-		newRoot := &Node{
+		newRoot := &Node[T]{
 			Tree:   m,
 			Parent: nil,
 			Left:   root,
@@ -132,10 +148,10 @@ func (m *MerkleTree) Append(value NodeValue) error {
 		root.Parent = newRoot
 		node.Parent = newRoot
 	}
-	return m.updateParentHashes(node)
+	return len(m.Leafs), m.updateParentHashes(node)
 }
 
-func appendToSubroot(node *Node, subroot *Node) bool {
+func appendToSubroot[T NodeValue](node *Node[T], subroot *Node[T]) bool {
 	if subroot.leaf() {
 		return false
 	}
@@ -145,7 +161,7 @@ func appendToSubroot(node *Node, subroot *Node) bool {
 	}
 
 	child := subroot.Right
-	parent := &Node{
+	parent := &Node[T]{
 		Tree:   subroot.Tree,
 		Parent: subroot,
 		Left:   child,
@@ -161,7 +177,7 @@ func appendToSubroot(node *Node, subroot *Node) bool {
 	return true
 }
 
-func (m *MerkleTree) updateParentHashes(node *Node) error {
+func (m *MerkleTree[T]) updateParentHashes(node *Node[T]) error {
 	if node == nil {
 		return nil
 	}
