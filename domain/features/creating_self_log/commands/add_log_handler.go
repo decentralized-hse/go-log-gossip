@@ -16,8 +16,9 @@ func NewAddLogHandler(storage storage.LogStorage, gossiper *gossip.Gossiper) *Ad
 }
 
 func (c *AddLogHandler) Handle(_ context.Context, command *AddLogCommand) (response *AddLogResponse, err error) {
-	err = c.storage.TryInsertAt(command.Log.Message, command.Log.NodeId, command.Log.Position)
+	err, _ = c.storage.InsertAt(command.Log.Message, command.Log.NodeId, command.Log.Position)
 	if err != nil {
+		// TODO: gossiper pull record with id = lastInserted
 		return nil, err
 	}
 	_ = c.gossiper.BroadcastMessage("sync", command.Log)

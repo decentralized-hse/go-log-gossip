@@ -14,17 +14,19 @@ type MerkleTree[T NodeValue] struct {
 	Root         *Node[T]
 	merkleRoot   []byte
 	Leafs        []*Node[T]
+	LastNode     *Node[T]
 	hashStrategy func() hash.Hash
 }
 
 type Node[T NodeValue] struct {
-	Tree   *MerkleTree[T]
-	Parent *Node[T]
-	Left   *Node[T]
-	Right  *Node[T]
-	level  int64
-	Hash   []byte
-	Value  *T
+	Tree     *MerkleTree[T]
+	Parent   *Node[T]
+	Left     *Node[T]
+	Right    *Node[T]
+	level    int64
+	Hash     []byte
+	Position int
+	Value    *T
 }
 
 func (n *Node[T]) leaf() bool {
@@ -85,20 +87,20 @@ func NewMerkleTree[T NodeValue]() *MerkleTree[T] {
 	return merkleTree
 }
 
-func (m *MerkleTree[T]) Append(value T) (int, error) {
+func (m *MerkleTree[T]) Append(value T) error {
 	root := m.Root
 
 	valueHash, err := value.CalculateHash()
 	var previousHash []byte
 
-	if len(m.Leafs) > 0 {
-		previousHash = m.Leafs[len(m.Leafs)-1].Hash
+	if m.LastNode != nil {
+		previousHash = m.LastNode.Hash
 	} else {
 		previousHash = make([]byte, 0)
 	}
 
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	h := m.hashStrategy()
@@ -107,28 +109,30 @@ func (m *MerkleTree[T]) Append(value T) (int, error) {
 	valueHash = h.Sum(previousHash)
 
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	node := &Node[T]{
-		Tree:  m,
-		level: 0,
-		Hash:  valueHash,
-		Value: &value,
+		Tree:     m,
+		level:    0,
+		Hash:     valueHash,
+		Value:    &value,
+		Position: len(m.Leafs),
 	}
 
 	m.Leafs = append(m.Leafs, node)
+	m.LastNode = node
 
 	if root.Left == nil {
 		root.Left = node
 		node.Parent = root
-		return len(m.Leafs), m.updateParentHashes(node)
+		return m.updateParentHashes(node)
 	}
 
 	if root.Right == nil {
 		root.Right = node
 		node.Parent = root
-		return len(m.Leafs), m.updateParentHashes(node)
+		return m.updateParentHashes(node)
 	}
 
 	success := appendToSubroot(node, root)
@@ -148,7 +152,7 @@ func (m *MerkleTree[T]) Append(value T) (int, error) {
 		root.Parent = newRoot
 		node.Parent = newRoot
 	}
-	return len(m.Leafs), m.updateParentHashes(node)
+	return m.updateParentHashes(node)
 }
 
 func appendToSubroot[T NodeValue](node *Node[T], subroot *Node[T]) bool {

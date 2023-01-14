@@ -3,14 +3,21 @@ package storage
 import (
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"github.com/decentralized-hse/go-log-gossip/domain"
 	"github.com/decentralized-hse/go-log-gossip/storage/types"
 	"sync"
 )
 
 type InMemoryStorage struct {
-	mutex *sync.Mutex
-	trees map[domain.NodeId]*types.MerkleTree[*LogNodeValue]
+	mutex  *sync.Mutex
+	trees  map[domain.NodeId]*types.MerkleTree[*LogNodeValue]
+	queues map[domain.NodeId]map[int]*queueRecord
+}
+
+type queueRecord struct {
+	Message string
+	NodeId  domain.NodeId
 }
 
 type LogNodeValue struct {
@@ -47,42 +54,64 @@ func (storage *InMemoryStorage) Append(message string, nodeId domain.NodeId) (*d
 		storage.trees[nodeId] = tree
 	}
 
-	previousNode := tree.Leafs[len(tree.Leafs)-1]
-	length, err := tree.Append(&nodeValue)
+	err := tree.Append(&nodeValue)
+	lastNode := tree.LastNode
 
 	storage.mutex.Unlock()
-
-	if err != nil {
-		return nil, err
-	}
-
-	logHash, err := nodeValue.CalculateHash()
-
-	h := sha256.New()
-	_, err = h.Write(logHash)
-
-	if err != nil {
-		return nil, err
-	}
-
-	nodeHash := h.Sum(previousNode.Hash)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return &domain.Log{
-		Hash:     nodeHash[:],
+		Hash:     lastNode.Hash,
 		NodeId:   nodeId,
 		Message:  message,
-		Position: length,
+		Position: lastNode.Position,
 	}, nil
 }
 
-func (storage *InMemoryStorage) TryInsertAt(message string, nodeId domain.NodeId, position int) bool {
+func (storage *InMemoryStorage) InsertAt(message string, nodeId domain.NodeId, position int) (err error, lastInserted int) {
 	storage.mutex.Lock()
+	defer storage.mutex.Unlock()
+	tree, ok := storage.trees[nodeId]
+	if position == 0 {
+		tree = types.NewMerkleTree[*LogNodeValue]()
+		storage.trees[nodeId] = tree
+		return tree.Append(&LogNodeValue{message: message}), 0
+	}
+	if tree.LastNode.Position >= position {
+		return errors.New(
+			fmt.Sprintf("cannot insert message at position = %d, last inserted position = %d",
+				position, tree.LastNode.Position)), tree.LastNode.Position
+	}
+	queue, ok := storage.queues[nodeId]
+	if !ok {
+		queue = make(map[int]*queueRecord)
+		storage.queues[nodeId] = queue
+	}
 
-	storage.mutex.Unlock()
+	for lastPosition := tree.LastNode.Position; lastPosition+1 != position; {
+		record, ok := queue[lastPosition+1]
+		if !ok {
+			queue[position] = &queueRecord{message, nodeId}
+			return errors.New("not all records are present in the queue"), lastPosition
+		}
+		err := tree.Append(&LogNodeValue{record.Message})
+
+		if err != nil {
+			queue[position] = &queueRecord{message, nodeId}
+			return err, lastPosition
+		}
+	}
+
+	err = tree.Append(&LogNodeValue{message})
+
+	if err != nil {
+		queue[position] = &queueRecord{message, nodeId}
+		return err, tree.LastNode.Position
+	}
+	return nil, position
 }
 
 func (storage *InMemoryStorage) GetNodeMessages(id domain.NodeId) ([]*domain.Log, error) {
