@@ -43,21 +43,21 @@ func NewInMemoryStorage() *InMemoryStorage {
 	return &InMemoryStorage{trees: make(map[domain.NodeId]*types.MerkleTree[*LogNodeValue]), mutex: new(sync.Mutex)}
 }
 
-func (storage *InMemoryStorage) Append(message string, nodeId domain.NodeId) (*domain.Log, error) {
+func (m *InMemoryStorage) Append(message string, nodeId domain.NodeId) (*domain.Log, error) {
 	nodeValue := LogNodeValue{message: message}
 
-	storage.mutex.Lock()
-	tree, ok := storage.trees[nodeId]
+	m.mutex.Lock()
+	tree, ok := m.trees[nodeId]
 
 	if !ok {
 		tree = types.NewMerkleTree[*LogNodeValue]()
-		storage.trees[nodeId] = tree
+		m.trees[nodeId] = tree
 	}
 
 	err := tree.Append(&nodeValue)
 	lastNode := tree.LastNode
 
-	storage.mutex.Unlock()
+	m.mutex.Unlock()
 
 	if err != nil {
 		return nil, err
@@ -71,13 +71,13 @@ func (storage *InMemoryStorage) Append(message string, nodeId domain.NodeId) (*d
 	}, nil
 }
 
-func (storage *InMemoryStorage) InsertAt(message string, nodeId domain.NodeId, position int) (error, int) {
-	storage.mutex.Lock()
-	defer storage.mutex.Unlock()
-	tree, ok := storage.trees[nodeId]
+func (m *InMemoryStorage) InsertAt(message string, nodeId domain.NodeId, position int) (error, int) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	tree, ok := m.trees[nodeId]
 	if position == 0 {
 		tree = types.NewMerkleTree[*LogNodeValue]()
-		storage.trees[nodeId] = tree
+		m.trees[nodeId] = tree
 		return tree.Append(&LogNodeValue{message: message}), 0
 	}
 	if tree.LastNode.Position >= position {
@@ -85,10 +85,10 @@ func (storage *InMemoryStorage) InsertAt(message string, nodeId domain.NodeId, p
 			fmt.Sprintf("cannot insert message at position = %d, last inserted position = %d",
 				position, tree.LastNode.Position)), -1
 	}
-	queue, ok := storage.queues[nodeId]
+	queue, ok := m.queues[nodeId]
 	if !ok {
 		queue = make(map[int]*queueRecord)
-		storage.queues[nodeId] = queue
+		m.queues[nodeId] = queue
 	}
 
 	for lastPosition := tree.LastNode.Position; lastPosition+1 != position; {
@@ -114,10 +114,10 @@ func (storage *InMemoryStorage) InsertAt(message string, nodeId domain.NodeId, p
 	return nil, -1
 }
 
-func (storage *InMemoryStorage) GetNodeLogs(id domain.NodeId) ([]*domain.Log, error) {
-	storage.mutex.Lock()
-	defer storage.mutex.Unlock()
-	tree, ok := storage.trees[id]
+func (m *InMemoryStorage) GetNodeLogs(id domain.NodeId) ([]*domain.Log, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	tree, ok := m.trees[id]
 	if !ok {
 		return nil, errors.New("node not found")
 	}
@@ -132,4 +132,28 @@ func (storage *InMemoryStorage) GetNodeLogs(id domain.NodeId) ([]*domain.Log, er
 	}
 
 	return logs, nil
+}
+
+func (m *InMemoryStorage) GetNodeLog(nodeId domain.NodeId, logPosition int) (*domain.Log, error) {
+	tree, ok := m.trees[nodeId]
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("cannot find node with id = %s", nodeId))
+	}
+
+	if len(tree.Leafs) <= logPosition {
+		return nil, errors.New(fmt.Sprintf("cannot find log at position = %d", logPosition))
+	}
+
+	node := tree.Leafs[logPosition]
+
+	if node == nil {
+		return nil, errors.New(fmt.Sprintf("cannot find log at position = %d", logPosition))
+	}
+
+	return &domain.Log{
+		Hash:     node.Hash,
+		NodeId:   nodeId,
+		Message:  (*node.Value).message,
+		Position: node.Position,
+	}, nil
 }

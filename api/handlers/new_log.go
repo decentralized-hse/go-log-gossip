@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/decentralized-hse/go-log-gossip/domain/features/creating_self_log/commands"
+	"github.com/decentralized-hse/go-log-gossip/domain/features/logs/commands"
 	"github.com/mehdihadeli/go-mediatr"
 	"log"
 	"net/http"

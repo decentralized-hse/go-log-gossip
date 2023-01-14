@@ -22,7 +22,7 @@ func (c *CreateSelfLogHandler) Handle(_ context.Context, command *CreateSelfLogC
 	if err != nil {
 		return nil, err
 	}
-	_ = c.gossiper.BroadcastMessage(gossip.New, log)
+	_ = c.gossiper.BroadcastMessage(gossip.Push, log)
 	response = &CreateSelfLogResponse{NewLog: log}
 	return
 }

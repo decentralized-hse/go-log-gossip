@@ -7,8 +7,9 @@ import (
 
 func gossipHandler(message *gossip.Message) {
 	switch message.MessageType {
-	case gossip.New:
-
+	case gossip.Push:
+		break
+	case gossip.Pull:
 	}
 	log.Println(message)
 }
