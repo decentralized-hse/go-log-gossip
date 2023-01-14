@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/decentralized-hse/go-log-gossip/domain"
-	"github.com/decentralized-hse/go-log-gossip/domain/features/creating_self_log/commands"
+	"github.com/decentralized-hse/go-log-gossip/domain/features/logs/commands"
 	"github.com/mehdihadeli/go-mediatr"
 	"net/http"
 	"strings"
@@ -19,7 +19,7 @@ func HandleGetLogs(w http.ResponseWriter, r *http.Request) {
 	pathParams := strings.Split(r.URL.Path, "/")
 	nodeId := pathParams[len(pathParams)-1]
 
-	response, err := mediatr.Send[*commands.GetLogsCommand, *commands.GetLogsResponse](
+	response, err := mediatr.Send[*commands.GetLogsQuery, *commands.GetLogsResponse](
 		r.Context(),
 		commands.NewGetLogsCommand(domain.NodeId(nodeId)),
 	)

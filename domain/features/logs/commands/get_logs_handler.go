@@ -13,7 +13,7 @@ func NewGetLogsHandler(storage storage.LogStorage) *GetLogsHandler {
 	return &GetLogsHandler{storage: storage}
 }
 
-func (c *GetLogsHandler) Handle(_ context.Context, command *GetLogsCommand) (response *GetLogsResponse, err error) {
+func (c *GetLogsHandler) Handle(_ context.Context, command *GetLogsQuery) (response *GetLogsResponse, err error) {
 	logs, err := c.storage.GetNodeLogs(command.NodeId)
 	if err != nil {
 		return nil, err

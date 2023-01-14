@@ -3,5 +3,6 @@ package gossip
 type MessageType string
 
 const (
-	New MessageType = "new"
+	Push MessageType = "push"
+	Pull             = "pull"
 )

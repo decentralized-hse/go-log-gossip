@@ -3,7 +3,7 @@ package start
 import (
 	"context"
 	"github.com/decentralized-hse/go-log-gossip/api"
-	"github.com/decentralized-hse/go-log-gossip/domain/features/creating_self_log/commands"
+	"github.com/decentralized-hse/go-log-gossip/domain/features/logs/commands"
 	"github.com/decentralized-hse/go-log-gossip/infra/config"
 	"github.com/decentralized-hse/go-log-gossip/infra/gossip"
 	"github.com/decentralized-hse/go-log-gossip/infra/keys"
@@ -56,6 +56,8 @@ func initializeMediatr() {
 	createSelfLogHandler := commands.NewCreateSelfLogHandler(logStorage, gossiper)
 	addLogHandler := commands.NewAddLogHandler(logStorage, gossiper)
 	getLogsHandler := commands.NewGetLogsHandler(logStorage)
+	getLogHandler := commands.NewGetLogHandler(logStorage)
+
 	err := mediatr.RegisterRequestHandler[*commands.CreateSelfLogCommand, *commands.CreateSelfLogResponse](createSelfLogHandler)
 	if err != nil {
 		panic("Failed to register CreateSelfLogHandler")
@@ -66,7 +68,12 @@ func initializeMediatr() {
 		panic("Failed to register AddLogHandler")
 	}
 
-	err = mediatr.RegisterRequestHandler[*commands.GetLogsCommand, *commands.GetLogsResponse](getLogsHandler)
+	err = mediatr.RegisterRequestHandler[*commands.GetLogsQuery, *commands.GetLogsResponse](getLogsHandler)
+	if err != nil {
+		panic("Failed to register GetLogsHandler")
+	}
+
+	err = mediatr.RegisterRequestHandler[*commands.GetLogQuery, *commands.GetLogResponse](getLogHandler)
 	if err != nil {
 		panic("Failed to register GetLogsHandler")
 	}
