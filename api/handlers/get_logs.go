@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/decentralized-hse/go-log-gossip/domain"
 	"github.com/decentralized-hse/go-log-gossip/domain/features/logs/commands"
 	"github.com/mehdihadeli/go-mediatr"
 	"net/http"
@@ -21,7 +20,7 @@ func HandleGetLogs(w http.ResponseWriter, r *http.Request) {
 
 	response, err := mediatr.Send[*commands.GetLogsQuery, *commands.GetLogsResponse](
 		r.Context(),
-		commands.NewGetLogsCommand(domain.NodeId(nodeId)),
+		commands.NewGetLogsCommand(nodeId),
 	)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error while trying to get logs by id=%s", nodeId), http.StatusInternalServerError)

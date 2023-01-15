@@ -11,13 +11,14 @@ import (
 
 type InMemoryStorage struct {
 	mutex  *sync.Mutex
-	trees  map[domain.NodeId]*types.MerkleTree[*LogNodeValue]
-	queues map[domain.NodeId]map[int]*queueRecord
+	trees  map[string]*types.MerkleTree[*LogNodeValue]
+	queues map[string]map[int]*queueRecord
 }
 
 type queueRecord struct {
 	Message string
-	NodeId  domain.NodeId
+	NodeId  string
+	Hash    []byte
 }
 
 type LogNodeValue struct {
@@ -40,10 +41,13 @@ func (l *LogNodeValue) Equals(other types.NodeValue) (bool, error) {
 }
 
 func NewInMemoryStorage() *InMemoryStorage {
-	return &InMemoryStorage{trees: make(map[domain.NodeId]*types.MerkleTree[*LogNodeValue]), mutex: new(sync.Mutex)}
+	return &InMemoryStorage{
+		trees:  make(map[string]*types.MerkleTree[*LogNodeValue]),
+		queues: make(map[string]map[int]*queueRecord),
+		mutex:  new(sync.Mutex)}
 }
 
-func (m *InMemoryStorage) Append(message string, nodeId domain.NodeId) (*domain.Log, error) {
+func (m *InMemoryStorage) Append(message string, nodeId string) (*domain.Log, error) {
 	nodeValue := LogNodeValue{message: message}
 
 	m.mutex.Lock()
@@ -71,14 +75,19 @@ func (m *InMemoryStorage) Append(message string, nodeId domain.NodeId) (*domain.
 	}, nil
 }
 
-func (m *InMemoryStorage) InsertAt(message string, nodeId domain.NodeId, position int) (error, int) {
+func (m *InMemoryStorage) InsertAt(log domain.Log, nodeId string, position int) (error, int) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	tree, ok := m.trees[nodeId]
-	if position == 0 {
+	if position == 0 && len(tree.Leafs) == 0 {
+		logNodeValue := LogNodeValue{message: log.Message}
+		hash, _ := logNodeValue.CalculateHash()
+		if !hashEquals(hash, log.Hash) {
+			return errors.New("actual hash does not equals to expected"), 0
+		}
 		tree = types.NewMerkleTree[*LogNodeValue]()
 		m.trees[nodeId] = tree
-		return tree.Append(&LogNodeValue{message: message}), 0
+		return tree.Append(&logNodeValue), -1
 	}
 	if tree.LastNode.Position >= position {
 		return errors.New(
@@ -94,27 +103,46 @@ func (m *InMemoryStorage) InsertAt(message string, nodeId domain.NodeId, positio
 	for lastPosition := tree.LastNode.Position; lastPosition+1 != position; {
 		record, ok := queue[lastPosition+1]
 		if !ok {
-			queue[position] = &queueRecord{message, nodeId}
+			queue[position] = &queueRecord{log.Message, nodeId, log.Hash}
 			return errors.New("not all records are present in the queue"), lastPosition + 1
 		}
-		err := tree.Append(&LogNodeValue{record.Message})
+
+		hash := sha256.New()
+
+		logNodeValue := LogNodeValue{record.Message}
+		logHash, _ := logNodeValue.CalculateHash()
+		hash.Write(logHash)
+		h := hash.Sum(tree.LastNode.Hash)
+		if !hashEquals(h, record.Hash) {
+			return errors.New("actual hash does not equals to expected"), lastPosition
+		}
+		err := tree.Append(&logNodeValue)
 
 		if err != nil {
-			queue[position] = &queueRecord{message, nodeId}
+			queue[position] = &queueRecord{log.Message, nodeId, log.Hash}
 			return err, -1
 		}
 	}
 
-	err := tree.Append(&LogNodeValue{message})
+	hash := sha256.New()
+
+	logNodeValue := LogNodeValue{message: log.Message}
+	logHash, _ := logNodeValue.CalculateHash()
+	hash.Write(logHash)
+	h := hash.Sum(tree.LastNode.Hash)
+	if !hashEquals(h, log.Hash) {
+		return errors.New("actual hash does not equals to expected"), tree.LastNode.Position
+	}
+	err := tree.Append(&logNodeValue)
 
 	if err != nil {
-		queue[position] = &queueRecord{message, nodeId}
+		queue[position] = &queueRecord{log.Message, nodeId, log.Hash}
 		return err, -1
 	}
 	return nil, -1
 }
 
-func (m *InMemoryStorage) GetNodeLogs(id domain.NodeId) ([]*domain.Log, error) {
+func (m *InMemoryStorage) GetNodeLogs(id string) ([]*domain.Log, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	tree, ok := m.trees[id]
@@ -134,7 +162,7 @@ func (m *InMemoryStorage) GetNodeLogs(id domain.NodeId) ([]*domain.Log, error) {
 	return logs, nil
 }
 
-func (m *InMemoryStorage) GetNodeLog(nodeId domain.NodeId, logPosition int) (*domain.Log, error) {
+func (m *InMemoryStorage) GetNodeLog(nodeId string, logPosition int) (*domain.Log, error) {
 	tree, ok := m.trees[nodeId]
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("cannot find node with id = %s", nodeId))
@@ -156,4 +184,22 @@ func (m *InMemoryStorage) GetNodeLog(nodeId domain.NodeId, logPosition int) (*do
 		Message:  (*node.Value).message,
 		Position: node.Position,
 	}, nil
+}
+
+func hashEquals(f []byte, s []byte) bool {
+	if s == nil || f == nil {
+		return false
+	}
+
+	if len(f) != len(s) {
+		return false
+	}
+
+	for i := 0; i < len(f); i++ {
+		if f[i] != s[i] {
+			return false
+		}
+	}
+
+	return true
 }

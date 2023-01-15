@@ -4,12 +4,10 @@ import (
 	"fmt"
 )
 
-type NodeId string
-
 type Log struct {
 	Hash     []byte
 	Position int
-	NodeId   NodeId
+	NodeId   string
 	Message  string
 }
 

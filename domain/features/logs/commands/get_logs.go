@@ -6,14 +6,14 @@ import (
 )
 
 type GetLogsQuery struct {
-	NodeId domain.NodeId
+	NodeId string
 }
 
 func (c *GetLogsQuery) String() string {
 	return fmt.Sprintf("GetLogsQuery{%v}", c.NodeId)
 }
 
-func NewGetLogsCommand(nodeId domain.NodeId) *GetLogsQuery {
+func NewGetLogsCommand(nodeId string) *GetLogsQuery {
 	return &GetLogsQuery{NodeId: nodeId}
 }
 

@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/decentralized-hse/go-log-gossip/domain"
 	"github.com/decentralized-hse/go-log-gossip/infra/config"
 	"github.com/decentralized-hse/go-log-gossip/infra/keys"
 	"github.com/hashicorp/memberlist"
@@ -16,25 +15,25 @@ import (
 
 type MessageHandler func(*Message)
 
-type ReceivedNodeIdAddrCallback func(nodeId domain.NodeId, addr string)
+type ReceivedNodeIdAddrCallback func(nodeId string, addr string)
 
 type Gossiper struct {
 	ml           *memberlist.Memberlist
 	keys         *keys.PublicPrivateKeyPair
-	nodeRegistry map[domain.NodeId]string
+	nodeRegistry map[string]string
 
-	encodedSender domain.NodeId
+	encodedSender string
 }
 
 func Start(cfg *config.Config, keys *keys.PublicPrivateKeyPair, handler MessageHandler, ctx context.Context, wg *sync.WaitGroup) *Gossiper {
-	nodeRegistry := make(map[domain.NodeId]string)
+	nodeRegistry := make(map[string]string)
 
 	log.Println("making gossip node config")
 	mlConfig := memberlist.DefaultLocalConfig()
 	mlConfig.Name = cfg.Gossip.SelfNodeName
 	mlConfig.Delegate = &notifyDelegate{
 		handler: handler,
-		receivedNodeIdAddrCallback: func(nodeId domain.NodeId, addr string) {
+		receivedNodeIdAddrCallback: func(nodeId string, addr string) {
 			nodeRegistry[nodeId] = addr
 		},
 	}
@@ -76,7 +75,7 @@ func Start(cfg *config.Config, keys *keys.PublicPrivateKeyPair, handler MessageH
 	return &Gossiper{
 		ml:            ml,
 		keys:          keys,
-		encodedSender: domain.NodeId(encodedSender),
+		encodedSender: encodedSender,
 		nodeRegistry:  nodeRegistry,
 	}
 }
@@ -101,7 +100,7 @@ func (g *Gossiper) BroadcastMessage(messageType MessageType, data any) error {
 
 // Request не возвращает ответ. Ответ, если таковой подразумевается от toNode, будет приходить в MessageHandler.
 // Аналогия: посылаем запрос по шине, а потом, когда-нибудь по шине придет ответ
-func (g *Gossiper) Request(toNode domain.NodeId, messageType MessageType, data any) error {
+func (g *Gossiper) Request(toNode string, messageType MessageType, data any) error {
 	nodeAddr, isInRegistry := g.nodeRegistry[toNode]
 	if !isInRegistry {
 		return fmt.Errorf("%v not in current registry", toNode)
