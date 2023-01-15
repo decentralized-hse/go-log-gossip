@@ -6,19 +6,18 @@ import (
 	"github.com/decentralized-hse/go-log-gossip/storage"
 )
 
-const SelfNodeId = "self"
-
 type CreateSelfLogHandler struct {
-	storage  storage.LogStorage
-	gossiper *gossip.Gossiper
+	storage    storage.LogStorage
+	gossiper   *gossip.Gossiper
+	selfNodeId string
 }
 
-func NewCreateSelfLogHandler(storage storage.LogStorage, gossiper *gossip.Gossiper) *CreateSelfLogHandler {
-	return &CreateSelfLogHandler{storage: storage, gossiper: gossiper}
+func NewCreateSelfLogHandler(storage storage.LogStorage, gossiper *gossip.Gossiper, selfNodeId string) *CreateSelfLogHandler {
+	return &CreateSelfLogHandler{storage: storage, gossiper: gossiper, selfNodeId: selfNodeId}
 }
 
 func (c *CreateSelfLogHandler) Handle(_ context.Context, command *CreateSelfLogCommand) (response *CreateSelfLogResponse, err error) {
-	log, err := c.storage.Append(command.Message, SelfNodeId)
+	log, err := c.storage.Append(command.Message, c.selfNodeId)
 	if err != nil {
 		return nil, err
 	}

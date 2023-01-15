@@ -53,7 +53,7 @@ func loadKeys() {
 }
 
 func initializeMediatr() {
-	createSelfLogHandler := commands.NewCreateSelfLogHandler(logStorage, gossiper)
+	createSelfLogHandler := commands.NewCreateSelfLogHandler(logStorage, gossiper, keysPair.GetPublicKey().Encode())
 	addLogHandler := commands.NewAddLogHandler(logStorage, gossiper)
 	getLogsHandler := commands.NewGetLogsHandler(logStorage)
 	sendLogHandler := commands.NewSendLogHandler(logStorage, gossiper)

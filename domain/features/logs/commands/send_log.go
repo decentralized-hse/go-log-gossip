@@ -6,16 +6,16 @@ import (
 )
 
 type SendLogCommand struct {
-	NodeId      domain.NodeId
+	NodeId      string
 	LogPosition int
-	SenderId    domain.NodeId
+	SenderId    string
 }
 
 func (c *SendLogCommand) String() string {
 	return fmt.Sprintf("SendLogCommand{%s, %d}", c.NodeId, c.LogPosition)
 }
 
-func NewSendLogCommand(senderId domain.NodeId, nodeId domain.NodeId, logPosition int) *SendLogCommand {
+func NewSendLogCommand(senderId string, nodeId string, logPosition int) *SendLogCommand {
 	return &SendLogCommand{SenderId: senderId, NodeId: nodeId, LogPosition: logPosition}
 }
 

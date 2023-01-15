@@ -19,7 +19,7 @@ func gossipHandler(message *gossip.Message) {
 		break
 	case gossip.Pull:
 		logPosition := 0 //domain.Log(message.Payload) TODO: Get log position
-		nodeId := domain.NodeId("asd")
+		nodeId := "todo"
 		_, err := mediatr.Send[*commands.SendLogCommand, *commands.SendLogResponse](ctx,
 			commands.NewSendLogCommand(message.Sender, nodeId, logPosition))
 		if err != nil {
