@@ -56,7 +56,7 @@ func initializeMediatr() {
 	createSelfLogHandler := commands.NewCreateSelfLogHandler(logStorage, gossiper)
 	addLogHandler := commands.NewAddLogHandler(logStorage, gossiper)
 	getLogsHandler := commands.NewGetLogsHandler(logStorage)
-	getLogHandler := commands.NewGetLogHandler(logStorage)
+	sendLogHandler := commands.NewSendLogHandler(logStorage, gossiper)
 
 	err := mediatr.RegisterRequestHandler[*commands.CreateSelfLogCommand, *commands.CreateSelfLogResponse](createSelfLogHandler)
 	if err != nil {
@@ -73,7 +73,7 @@ func initializeMediatr() {
 		panic("Failed to register GetLogsHandler")
 	}
 
-	err = mediatr.RegisterRequestHandler[*commands.GetLogQuery, *commands.GetLogResponse](getLogHandler)
+	err = mediatr.RegisterRequestHandler[*commands.SendLogCommand, *commands.SendLogResponse](sendLogHandler)
 	if err != nil {
 		panic("Failed to register GetLogsHandler")
 	}
