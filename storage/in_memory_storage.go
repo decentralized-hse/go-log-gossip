@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/decentralized-hse/go-log-gossip/domain"
 	"github.com/decentralized-hse/go-log-gossip/storage/types"
+	"log"
 	"sync"
 )
 
@@ -49,7 +50,7 @@ func NewInMemoryStorage() *InMemoryStorage {
 
 func (m *InMemoryStorage) Append(message string, nodeId string) (*domain.Log, error) {
 	nodeValue := LogNodeValue{message: message}
-
+	_, _ = nodeValue.CalculateHash()
 	m.mutex.Lock()
 	tree, ok := m.trees[nodeId]
 
@@ -59,6 +60,7 @@ func (m *InMemoryStorage) Append(message string, nodeId string) (*domain.Log, er
 	}
 
 	err := tree.Append(&nodeValue)
+	log.Printf("Current tree root hash = %v", tree.Root.Hash)
 	lastNode := tree.LastNode
 
 	m.mutex.Unlock()
@@ -75,21 +77,27 @@ func (m *InMemoryStorage) Append(message string, nodeId string) (*domain.Log, er
 	}, nil
 }
 
-func (m *InMemoryStorage) InsertAt(log domain.Log, nodeId string, position int) (error, int) {
+func (m *InMemoryStorage) InsertAt(logRecord domain.Log, nodeId string, position int) (error, int) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
+
 	tree, ok := m.trees[nodeId]
-	if position == 0 && len(tree.Leafs) == 0 {
-		logNodeValue := LogNodeValue{message: log.Message}
-		hash, _ := logNodeValue.CalculateHash()
-		if !hashEquals(hash, log.Hash) {
-			return errors.New("actual hash does not equals to expected"), 0
-		}
+	if !ok {
 		tree = types.NewMerkleTree[*LogNodeValue]()
 		m.trees[nodeId] = tree
-		return tree.Append(&logNodeValue), -1
 	}
-	if tree.LastNode.Position >= position {
+
+	if position == 0 && len(tree.Leafs) == 0 {
+		logNodeValue := LogNodeValue{message: logRecord.Message}
+		hash, _ := logNodeValue.CalculateHash()
+		if !hashEquals(hash, logRecord.Hash) {
+			return errors.New(fmt.Sprintf("actual hash does not equals to expected")), 0
+		}
+		m.trees[nodeId] = tree
+		log.Printf("Log %v inserted at position %d", logRecord, position)
+		return tree.Append(&logNodeValue), 1
+	}
+	if tree.LastNode != nil && tree.LastNode.Position >= position {
 		return errors.New(
 			fmt.Sprintf("cannot insert message at position = %d, last inserted position = %d",
 				position, tree.LastNode.Position)), -1
@@ -100,10 +108,15 @@ func (m *InMemoryStorage) InsertAt(log domain.Log, nodeId string, position int) 
 		m.queues[nodeId] = queue
 	}
 
-	for lastPosition := tree.LastNode.Position; lastPosition+1 != position; {
+	lastPosition := -1
+	if tree.LastNode != nil {
+		lastPosition = tree.LastNode.Position
+	}
+
+	for lastPosition+1 != position {
 		record, ok := queue[lastPosition+1]
 		if !ok {
-			queue[position] = &queueRecord{log.Message, nodeId, log.Hash}
+			queue[position] = &queueRecord{logRecord.Message, nodeId, logRecord.Hash}
 			return errors.New("not all records are present in the queue"), lastPosition + 1
 		}
 
@@ -112,34 +125,36 @@ func (m *InMemoryStorage) InsertAt(log domain.Log, nodeId string, position int) 
 		logNodeValue := LogNodeValue{record.Message}
 		logHash, _ := logNodeValue.CalculateHash()
 		hash.Write(logHash)
-		h := hash.Sum(tree.LastNode.Hash)
+		hash.Write(tree.LastNode.Hash)
+		h := hash.Sum(nil)
 		if !hashEquals(h, record.Hash) {
 			return errors.New("actual hash does not equals to expected"), lastPosition
 		}
 		err := tree.Append(&logNodeValue)
 
 		if err != nil {
-			queue[position] = &queueRecord{log.Message, nodeId, log.Hash}
+			queue[position] = &queueRecord{logRecord.Message, nodeId, logRecord.Hash}
 			return err, -1
 		}
 	}
 
 	hash := sha256.New()
 
-	logNodeValue := LogNodeValue{message: log.Message}
+	logNodeValue := LogNodeValue{message: logRecord.Message}
 	logHash, _ := logNodeValue.CalculateHash()
 	hash.Write(logHash)
-	h := hash.Sum(tree.LastNode.Hash)
-	if !hashEquals(h, log.Hash) {
+	hash.Write(tree.LastNode.Hash)
+	h := hash.Sum(nil)
+	if !hashEquals(h, logRecord.Hash) {
 		return errors.New("actual hash does not equals to expected"), tree.LastNode.Position
 	}
 	err := tree.Append(&logNodeValue)
 
 	if err != nil {
-		queue[position] = &queueRecord{log.Message, nodeId, log.Hash}
+		queue[position] = &queueRecord{logRecord.Message, nodeId, logRecord.Hash}
 		return err, -1
 	}
-	return nil, -1
+	return nil, position + 1
 }
 
 func (m *InMemoryStorage) GetNodeLogs(id string) ([]*domain.Log, error) {

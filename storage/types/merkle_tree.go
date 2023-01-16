@@ -96,7 +96,7 @@ func (m *MerkleTree[T]) Append(value T) error {
 	if m.LastNode != nil {
 		previousHash = m.LastNode.Hash
 	} else {
-		previousHash = make([]byte, 0)
+		previousHash = nil
 	}
 
 	if err != nil {
@@ -105,8 +105,11 @@ func (m *MerkleTree[T]) Append(value T) error {
 
 	h := m.hashStrategy()
 
-	_, err = h.Write(valueHash)
-	valueHash = h.Sum(previousHash)
+	if previousHash != nil {
+		_, _ = h.Write(valueHash)
+		_, _ = h.Write(previousHash)
+		valueHash = h.Sum(nil)
+	}
 
 	if err != nil {
 		return err
@@ -152,6 +155,7 @@ func (m *MerkleTree[T]) Append(value T) error {
 		root.Parent = newRoot
 		node.Parent = newRoot
 	}
+
 	return m.updateParentHashes(node)
 }
 

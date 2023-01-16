@@ -16,14 +16,11 @@ func NewSendLogHandler(storage storage.LogStorage, gossiper *gossip.Gossiper) *S
 	return &SendLogHandler{storage: storage, gossiper: gossiper}
 }
 
-func (c *SendLogHandler) Handle(_ context.Context, command *SendLogCommand) (response *SendLogResponse, err error) {
-	log, err := c.storage.GetNodeLog(command.NodeId, command.LogPosition)
-	if err != nil {
-		return nil, err
-	}
+func (c *SendLogHandler) Handle(_ context.Context, command *SendLogCommand) (*SendLogResponse, error) {
+	log, _ := c.storage.GetNodeLog(command.NodeId, command.LogPosition)
 
-	response = &SendLogResponse{Log: log}
+	response := &SendLogResponse{Log: log}
 	dto := dtos.NewLogDTO(log)
 	c.gossiper.Request(command.SenderId, gossip.Push, dto)
-	return
+	return response, nil
 }

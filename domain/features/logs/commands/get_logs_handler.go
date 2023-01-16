@@ -13,12 +13,11 @@ func NewGetLogsHandler(storage storage.LogStorage) *GetLogsHandler {
 	return &GetLogsHandler{storage: storage}
 }
 
-func (c *GetLogsHandler) Handle(_ context.Context, command *GetLogsQuery) (response *GetLogsResponse, err error) {
+func (c *GetLogsHandler) Handle(_ context.Context, command *GetLogsQuery) (*GetLogsResponse, error) {
 	logs, err := c.storage.GetNodeLogs(command.NodeId)
 	if err != nil {
 		return nil, err
 	}
 
-	response = &GetLogsResponse{Logs: logs}
-	return
+	return &GetLogsResponse{Logs: logs}, nil
 }
