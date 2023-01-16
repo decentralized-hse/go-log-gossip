@@ -27,7 +27,7 @@ func (m *notifyDelegate) NotifyMsg(bytes []byte) {
 		return
 	}
 
-	senderPublicKey, err := keys.DecodePublicKey(string(message.Sender))
+	senderPublicKey, err := keys.DecodePublicKey(message.Sender)
 	if err != nil {
 		log.Println("failed to decode sender public key: ", err)
 		return

@@ -80,7 +80,11 @@ func Start(cfg *config.Config, keys *keys.PublicPrivateKeyPair, handler MessageH
 	}
 }
 
-func (g *Gossiper) BroadcastMessage(messageType MessageType, data any) error {
+type Serializable interface {
+	Serialize() map[string]interface{}
+}
+
+func (g *Gossiper) BroadcastMessage(messageType MessageType, data Serializable) error {
 	bytes, err := g.encodeMessage(messageType, data)
 
 	if err != nil {
@@ -100,7 +104,7 @@ func (g *Gossiper) BroadcastMessage(messageType MessageType, data any) error {
 
 // Request не возвращает ответ. Ответ, если таковой подразумевается от toNode, будет приходить в MessageHandler.
 // Аналогия: посылаем запрос по шине, а потом, когда-нибудь по шине придет ответ
-func (g *Gossiper) Request(toNode string, messageType MessageType, data any) error {
+func (g *Gossiper) Request(toNode string, messageType MessageType, data Serializable) error {
 	nodeAddr, isInRegistry := g.nodeRegistry[toNode]
 	if !isInRegistry {
 		return fmt.Errorf("%v not in current registry", toNode)
@@ -125,8 +129,10 @@ func (g *Gossiper) Request(toNode string, messageType MessageType, data any) err
 	return g.ml.SendReliable(mlNode, message)
 }
 
-func (g *Gossiper) encodeMessage(messageType MessageType, data any) ([]byte, error) {
-	marshaledData, err := json.Marshal(data)
+func (g *Gossiper) encodeMessage(messageType MessageType, data Serializable) ([]byte, error) {
+	serialized := data.Serialize()
+
+	marshaledData, err := json.Marshal(serialized)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +149,7 @@ func (g *Gossiper) encodeMessage(messageType MessageType, data any) ([]byte, err
 		MessageType: messageType,
 		Sender:      senderEncoded,
 		Signature:   signatureEncoded,
-		Payload:     data,
+		Payload:     serialized,
 		Meta: struct {
 			Addr string `json:"addr"`
 		}{

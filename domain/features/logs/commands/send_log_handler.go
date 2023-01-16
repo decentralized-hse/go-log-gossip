@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"github.com/decentralized-hse/go-log-gossip/domain/features/dtos"
 	"github.com/decentralized-hse/go-log-gossip/infra/gossip"
 	"github.com/decentralized-hse/go-log-gossip/storage"
 )
@@ -22,6 +23,7 @@ func (c *SendLogHandler) Handle(_ context.Context, command *SendLogCommand) (res
 	}
 
 	response = &SendLogResponse{Log: log}
-	c.gossiper.Request(command.SenderId, gossip.Push, response.Log)
+	dto := dtos.NewLogDTO(log)
+	c.gossiper.Request(command.SenderId, gossip.Push, dto)
 	return
 }

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"github.com/decentralized-hse/go-log-gossip/domain/features/dtos"
 	"github.com/decentralized-hse/go-log-gossip/infra/gossip"
 	"github.com/decentralized-hse/go-log-gossip/storage"
 )
@@ -21,7 +22,8 @@ func (c *CreateSelfLogHandler) Handle(_ context.Context, command *CreateSelfLogC
 	if err != nil {
 		return nil, err
 	}
-	_ = c.gossiper.BroadcastMessage(gossip.Push, log)
+	dto := dtos.NewLogDTO(log)
+	_ = c.gossiper.BroadcastMessage(gossip.Push, dto)
 	response = &CreateSelfLogResponse{NewLog: log}
 	return
 }
