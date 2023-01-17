@@ -22,6 +22,7 @@ var (
 	keysPair    *keys.PublicPrivateKeyPair
 	gossiper    *gossip.Gossiper
 	logStorage  *storage.InMemoryStorage
+	selfNodeId  string
 )
 
 func CommandStartNode() error {
@@ -50,10 +51,12 @@ func loadKeys() {
 		panic(err)
 	}
 	keysPair = loadFromFiles
+
+	selfNodeId = keysPair.GetPublicKey().Encode()
 }
 
 func initializeMediatr() {
-	createSelfLogHandler := commands.NewCreateSelfLogHandler(logStorage, gossiper, keysPair.GetPublicKey().Encode())
+	createSelfLogHandler := commands.NewCreateSelfLogHandler(logStorage, gossiper, selfNodeId)
 	addLogHandler := commands.NewAddLogHandler(logStorage, gossiper)
 	getLogsHandler := commands.NewGetLogsHandler(logStorage)
 	sendLogHandler := commands.NewSendLogHandler(logStorage, gossiper)

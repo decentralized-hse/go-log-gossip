@@ -14,7 +14,7 @@ func ServeAPIServer(configuration *ServerConfiguration) {
 		Addr: configuration.Addr,
 	}
 	http.HandleFunc("/api/messages/new", handlers.HandleNewLog)
-	http.HandleFunc("/api/messages/{id}", handlers.HandleGetLogs)
+	http.HandleFunc("/api/messages/logs", handlers.HandleGetLogs)
 
 	go func() {
 		if err := server.ListenAndServe(); err != http.ErrServerClosed {
@@ -27,5 +27,5 @@ func ServeAPIServer(configuration *ServerConfiguration) {
 	log.Printf("Shutting down api server")
 
 	_ = server.Shutdown(context.Background())
-	log.Printf("Api server sexited properly")
+	log.Printf("Api server exited properly")
 }

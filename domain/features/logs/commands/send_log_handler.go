@@ -20,7 +20,12 @@ func (c *SendLogHandler) Handle(_ context.Context, command *SendLogCommand) (*Se
 	log, _ := c.storage.GetNodeLog(command.NodeId, command.LogPosition)
 
 	response := &SendLogResponse{Log: log}
+
+	if log == nil {
+		return response, nil
+	}
+
 	dto := dtos.NewLogDTO(log)
-	c.gossiper.Request(command.SenderId, gossip.Push, dto)
+	_ = c.gossiper.Request(command.SenderId, gossip.Push, dto)
 	return response, nil
 }

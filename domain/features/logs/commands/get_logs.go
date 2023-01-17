@@ -2,7 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"github.com/decentralized-hse/go-log-gossip/domain"
+	"github.com/decentralized-hse/go-log-gossip/domain/features/dtos"
 )
 
 type GetLogsQuery struct {
@@ -18,5 +18,5 @@ func NewGetLogsCommand(nodeId string) *GetLogsQuery {
 }
 
 type GetLogsResponse struct {
-	Logs []*domain.Log
+	Logs []*dtos.LogDTO
 }

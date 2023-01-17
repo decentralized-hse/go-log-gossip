@@ -22,8 +22,9 @@ func (c *CreateSelfLogHandler) Handle(_ context.Context, command *CreateSelfLogC
 	if err != nil {
 		return nil, err
 	}
-	dto := dtos.NewLogDTO(log)
-	_ = c.gossiper.BroadcastMessage(gossip.Push, dto)
 
-	return &CreateSelfLogResponse{NewLog: log}, nil
+	dto := dtos.NewLogDTO(log)
+	err = c.gossiper.BroadcastMessage(gossip.Push, dto)
+
+	return &CreateSelfLogResponse{NewLog: log}, err
 }

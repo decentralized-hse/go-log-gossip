@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"github.com/decentralized-hse/go-log-gossip/domain/features/dtos"
 	"github.com/decentralized-hse/go-log-gossip/storage"
 )
 
@@ -19,5 +20,10 @@ func (c *GetLogsHandler) Handle(_ context.Context, command *GetLogsQuery) (*GetL
 		return nil, err
 	}
 
-	return &GetLogsResponse{Logs: logs}, nil
+	dtoLogs := make([]*dtos.LogDTO, len(logs))
+	for i, log := range logs {
+		dtoLogs[i] = dtos.NewLogDTO(log)
+	}
+
+	return &GetLogsResponse{Logs: dtoLogs}, nil
 }

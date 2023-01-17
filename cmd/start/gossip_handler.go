@@ -9,33 +9,40 @@ import (
 )
 
 func gossipHandler(message *gossip.Message) {
-	log.Println(message)
+	log.Println("handling message: ", message.MessageType)
+
 	switch message.MessageType {
 	case gossip.Push:
-		logDto := dtos.LogDTO{
-			Hash:     message.Payload["hash"].(string),
-			Position: int(message.Payload["position"].(float64)),
-			NodeId:   message.Payload["node_id"].(string),
-			Message:  message.Payload["message"].(string),
-		}
-		logRecord, err := logDto.ToDomain()
-		if err != nil {
-			return
-		}
-		_, err = mediatr.Send[*commands.AddLogCommand, *commands.AddLogResponse](ctx, commands.NewAddLogCommand(logRecord))
-		if err != nil {
-			log.Fatalf("Error occured err = %v", err)
-		}
-		break
+		handlePush(message)
 	case gossip.Pull:
-		logPosition := int(message.Payload["position"].(float64))
-		nodeId := message.Payload["node_id"].(string)
-		_, err := mediatr.Send[*commands.SendLogCommand, *commands.SendLogResponse](ctx,
-			commands.NewSendLogCommand(message.Sender, nodeId, logPosition))
-		if err != nil {
-			log.Fatalf("Error occured err = %v", err)
-		}
-		break
+		handlePull(message)
 	}
-	log.Println(message)
+}
+
+func handlePush(message *gossip.Message) {
+	logDto := dtos.LogDTO{
+		Hash:     message.Payload["hash"].(string),
+		Position: int(message.Payload["position"].(float64)),
+		NodeId:   message.Payload["node_id"].(string),
+		Message:  message.Payload["message"].(string),
+	}
+	logRecord, err := logDto.ToDomain()
+	if err != nil {
+		return
+	}
+
+	_, err = mediatr.Send[*commands.AddLogCommand, *commands.AddLogResponse](ctx, commands.NewAddLogCommand(logRecord))
+	if err != nil {
+		log.Fatalf("Error occured err = %v", err)
+	}
+}
+
+func handlePull(message *gossip.Message) {
+	logPosition := int(message.Payload["position"].(float64))
+	nodeId := message.Payload["node_id"].(string)
+	_, err := mediatr.Send[*commands.SendLogCommand, *commands.SendLogResponse](ctx,
+		commands.NewSendLogCommand(message.Sender, nodeId, logPosition))
+	if err != nil {
+		log.Fatalf("Error occured err = %v", err)
+	}
 }
