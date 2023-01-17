@@ -42,3 +42,7 @@ cp -r go-log-gossip recv
    ```
 5. Запустить recv: `cd recv/ && ./go-log-gossip s`
 6. Запустить send: `cd send/ && ./go-log-gossip s`
+
+
+Жданов Илья Александрович ФТ-303
+Сурков Денис Дмитриевич ФТ-301
