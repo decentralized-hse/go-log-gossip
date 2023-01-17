@@ -17,13 +17,13 @@ func NewCreateSelfLogHandler(storage storage.LogStorage, gossiper *gossip.Gossip
 	return &CreateSelfLogHandler{storage: storage, gossiper: gossiper, selfNodeId: selfNodeId}
 }
 
-func (c *CreateSelfLogHandler) Handle(_ context.Context, command *CreateSelfLogCommand) (response *CreateSelfLogResponse, err error) {
+func (c *CreateSelfLogHandler) Handle(_ context.Context, command *CreateSelfLogCommand) (*CreateSelfLogResponse, error) {
 	log, err := c.storage.Append(command.Message, c.selfNodeId)
 	if err != nil {
 		return nil, err
 	}
 	dto := dtos.NewLogDTO(log)
 	_ = c.gossiper.BroadcastMessage(gossip.Push, dto)
-	response = &CreateSelfLogResponse{NewLog: log}
-	return
+
+	return &CreateSelfLogResponse{NewLog: log}, nil
 }

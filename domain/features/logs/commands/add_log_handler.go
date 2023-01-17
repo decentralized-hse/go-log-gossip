@@ -16,14 +16,14 @@ func NewAddLogHandler(storage storage.LogStorage, gossiper *gossip.Gossiper) *Ad
 	return &AddLogHandler{storage: storage, gossiper: gossiper}
 }
 
-func (c *AddLogHandler) Handle(_ context.Context, command *AddLogCommand) (response *AddLogResponse, err error) {
-	err, requiredLogPosition := c.storage.InsertAt(command.Log, command.Log.NodeId, command.Log.Position)
-	if err != nil && requiredLogPosition >= 0 {
-		// TODO: возможно следует обернуть requiredLogPosition в объект
-		//_ = c.gossiper.BroadcastMessage(gossip.Pull, requiredLogPosition)
+func (c *AddLogHandler) Handle(_ context.Context, command *AddLogCommand) (*AddLogResponse, error) {
+	_, requiredLogPosition := c.storage.InsertAt(*command.Log, command.Log.NodeId, command.Log.Position)
+	if requiredLogPosition >= 0 {
+		requestDto := dtos.NewRequestDTO(command.Log.NodeId, requiredLogPosition)
+		_ = c.gossiper.BroadcastMessage(gossip.Pull, requestDto)
 	}
-	dto := dtos.NewLogDTO(&command.Log)
-	_ = c.gossiper.BroadcastMessage(gossip.Push, dto)
-	response = &AddLogResponse{}
-	return
+	//dto := dtos.NewLogDTO(command.Log)
+	//_ = c.gossiper.BroadcastMessage(gossip.Push, dto)
+
+	return &AddLogResponse{}, nil
 }
